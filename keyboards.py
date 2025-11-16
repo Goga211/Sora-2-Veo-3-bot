@@ -6,9 +6,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import CHANNEL_URL, CHANNEL_USERNAME
 
 
-# ===========================
 #  БАЗОВЫЕ КНОПКИ
-# ===========================
 
 def back_btn(callback_data: str) -> InlineKeyboardButton:
     """
@@ -33,9 +31,7 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-# ===========================
 #  ПОДПИСКА НА КАНАЛ
-# ===========================
 
 def subscribe_keyboard() -> InlineKeyboardMarkup:
     """
@@ -43,15 +39,12 @@ def subscribe_keyboard() -> InlineKeyboardMarkup:
     - перейти в канал
     - 'Я подписался'
     """
-    # если явно задан CHANNEL_URL — используем его;
-    # иначе пробуем собрать ссылку из username.
+
     if CHANNEL_URL:
         url = CHANNEL_URL
-    elif CHANNEL_USERNAME:
-        url = f"https://t.me/{CHANNEL_USERNAME.lstrip('@')}"
     else:
-        # запасной вариант — просто открыть Telegram
-        url = "https://t.me/"
+        url = f"https://t.me/{CHANNEL_USERNAME.lstrip('@')}"
+
 
     buttons = [
         [InlineKeyboardButton(text="📢 Подписаться на канал", url=url)],
@@ -60,9 +53,7 @@ def subscribe_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-# ===========================
 #  ВЫБОР ДВИЖКА: SORA 2 / VEO 3.1
-# ===========================
 
 def engine_select_keyboard() -> InlineKeyboardMarkup:
     """
@@ -77,9 +68,7 @@ def engine_select_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-# ===========================
 #  SORA 2 — КЛАВИАТУРЫ FSM
-# ===========================
 
 def get_prompt_type_keyboard(selected: Optional[str] = None) -> InlineKeyboardMarkup:
     """
@@ -189,9 +178,7 @@ def get_confirmation_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-# ===========================
 #  VEO 3.1 — КЛАВИАТУРЫ FSM
-# ===========================
 
 def veo_mode_keyboard() -> InlineKeyboardMarkup:
     """

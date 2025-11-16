@@ -74,8 +74,8 @@ SORA2_PRO_STD_15S = _int_env("SORA2_PRO_STD_15S", 135)
 SORA2_PRO_HD_10S  = _int_env("SORA2_PRO_HD_10S", 200)
 SORA2_PRO_HD_15S  = _int_env("SORA2_PRO_HD_15S", 400)
 
-VEO_FAST_COST    = _int_env("VEO_FAST_COST", 30)
-VEO_QUALITY_COST = _int_env("VEO_QUALITY_COST", 45)
+VEO_FAST_COST    = _int_env("VEO_FAST_COST", 60)
+VEO_QUALITY_COST = _int_env("VEO_QUALITY_COST", 250)
 
 
 _admin_ids_raw = os.getenv("ADMIN_IDS", "")

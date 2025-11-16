@@ -43,6 +43,64 @@ from utils import (
 
 logger = logging.getLogger(__name__)
 
+# Текст
+
+text_chose_model = (
+    """
+Sora 2
+
+Продвинутая модель от OpenAI, которая делает очень реалистичные и плавные видео. Отлично подходит для красивых, кинематографичных роликов.
+
+Veo 3.1
+
+Современная модель от Google, которая быстро создаёт чёткие видео по тексту или фото. Идеальна для коротких и динамичных роликов.
+    """
+)
+
+text_chose_sora = (
+    """
+✨ Sora 2
+
+Стандартная версия модели от OpenAI. Создаёт реалистичные, плавные и красивые видео по тексту или фото. Отличный выбор для большинства задач.
+
+🚀 Sora 2 Pro
+
+Продвинутая версия с улучшенной детализацией, более точной анимацией и повышенным качеством картинки. Подходит, когда нужно максимально кинематографичное и эффектное видео.
+
+⚠️ Обратите внимание:
+Видео в режиме Sora 2 Pro может генерироваться дольше обычного — до 45 минут.
+Это связано с повышенным качеством и более сложной обработкой сцены.
+    """
+)
+
+text_chose_type = (
+    """
+📝 Текст → Видео
+
+Опишите сцену словами — Sora создаст видео полностью по вашему тексту.
+Подходит для любых идей, даже если у вас нет изображений.
+
+📷 Фото → Видео
+
+Загрузите фото, и Sora создаст видео на его основе.
+⚠️ Важно: у OpenAI жёсткие ограничения на использование изображений.
+Фотографии людей, лица, персональные данные и многое другое могут быть отклонены или сильно изменены моделью.
+        """
+)
+
+text_chose_quality = (
+    """
+⚡ Стандартное качество
+
+Быстрая генерация и хорошая детализация. Подходит для большинства обычных роликов — оптимальный баланс скорости и качества.
+
+✨ Высокое качество
+
+Улучшенная картинка, больше деталей и более плавные движения.
+Подходит для важных и визуально насыщенных видео.
+⚠️ Генерация может занимать больше времени.
+    """
+)
 
 #  УТИЛИТЫ ДЛЯ РАСЧЁТА ЦЕН
 
@@ -209,7 +267,7 @@ async def menu_create_cb(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await safe_edit_text(
         callback.message,
-        "Выберите движок генерации:",
+        text_chose_model,
         reply_markup=engine_select_keyboard(),
     )
 
@@ -239,7 +297,7 @@ async def engine_sora_cb(callback: CallbackQuery, state: FSMContext):
 
     await safe_edit_text(
         callback.message,
-        "Выберите тип промпта:",
+        text_chose_type,
         reply_markup=get_prompt_type_keyboard(),
     )
 
@@ -256,7 +314,7 @@ async def choose_prompt_type(callback: CallbackQuery, state: FSMContext):
 
     await safe_edit_text(
         callback.message,
-        "Выберите модель:",
+        text_chose_sora,
         reply_markup=get_model_tier_keyboard(selected=None),
     )
 
@@ -265,7 +323,7 @@ async def back_to_prompt_type(callback: CallbackQuery, state: FSMContext):
     await state.set_state(VideoCreationStates.waiting_for_prompt_type)
     await safe_edit_text(
         callback.message,
-        "Выберите тип промпта:",
+        text_chose_type,
         reply_markup=get_prompt_type_keyboard(),
     )
 
@@ -280,7 +338,7 @@ async def choose_tier(callback: CallbackQuery, state: FSMContext):
         await state.set_state(VideoCreationStates.waiting_for_quality)
         await safe_edit_text(
             callback.message,
-            "Выберите качество:",
+            text_chose_quality,
             reply_markup=get_quality_keyboard(selected=None),
         )
     else:
@@ -300,7 +358,7 @@ async def back_to_model_tier(callback: CallbackQuery, state: FSMContext):
     await state.set_state(VideoCreationStates.waiting_for_model_tier)
     await safe_edit_text(
         callback.message,
-        "Выберите модель:",
+        text_chose_sora,
         reply_markup=get_model_tier_keyboard(selected=None),
     )
 
@@ -345,14 +403,14 @@ async def back_to_quality_or_tier(callback: CallbackQuery, state: FSMContext):
         await state.set_state(VideoCreationStates.waiting_for_quality)
         await safe_edit_text(
             callback.message,
-            "Выберите качество:",
+            text_chose_quality,
             reply_markup=get_quality_keyboard(selected=quality),
         )
     else:
         await state.set_state(VideoCreationStates.waiting_for_model_tier)
         await safe_edit_text(
             callback.message,
-            "Выберите модель:",
+            text_chose_sora,
             reply_markup=get_model_tier_keyboard(selected=tier),
         )
 
@@ -768,6 +826,7 @@ async def check_video_status(
                                 video=video_url,
                                 caption="🎬 Готовый ролик",
                             )
+                            await safe_send_message(bot, uid, "🏠 Главное меню:", reply_markup=main_menu_keyboard())
                         else:
                             await safe_send_message(
                                 bot,

@@ -32,13 +32,12 @@ from utils import (
     safe_send_video,
     safe_edit_text,
 )
-
+from subscription import main_menu_keyboard
 logger = logging.getLogger(__name__)
 
 
-# =====================================================
-#                   ВСПОМОГАТЕЛЬНЫЕ
-# =====================================================
+
+# ВСПОМОГАТЕЛЬНЫЕ
 
 def _veo_headers() -> dict:
     return {
@@ -63,9 +62,7 @@ def _cost_for_model(model: str) -> int:
     return VEO_FAST_COST if model == "veo3_fast" else VEO_QUALITY_COST
 
 
-# =====================================================
-#               ОПРОС СТАТУСА VEO (taskId)
-# =====================================================
+# ОПРОС СТАТУСА VEO (taskId)
 
 async def check_veo_status(bot, uid: int, task_id: str, cost: int) -> None:
 
@@ -132,6 +129,12 @@ async def check_veo_status(bot, uid: int, task_id: str, cost: int) -> None:
                                 video_url,
                                 caption="🎬 Готовый ролик (Veo 3.1)"
                             )
+                            await safe_send_message(
+                                bot,
+                                uid,
+                                "🏠 Главное меню:",
+                                reply_markup=main_menu_keyboard(),
+                            )
                             return
 
                         # --- ошибка ---
@@ -165,9 +168,7 @@ async def check_veo_status(bot, uid: int, task_id: str, cost: int) -> None:
 
 
 
-# =====================================================
-#                ОСНОВНАЯ ЛОГИКА FSM
-# =====================================================
+#ОСНОВНАЯ ЛОГИКА FSM
 
 async def engine_veo_cb(callback: CallbackQuery, state: FSMContext):
     await state.set_state(VeoStates.choosing_mode)
@@ -181,7 +182,23 @@ async def engine_veo_cb(callback: CallbackQuery, state: FSMContext):
     )
     await safe_edit_text(
         callback.message,
-        "🎥 Veo 3.1 — выберите режим:",
+        """
+📝 Текст → Видео
+
+Введите описание — и модель сама создаст видео по вашему тексту. Подходит для любых идей, даже если у вас нет фото.
+
+📷 Фото → Видео
+
+Загрузите 1–2 фото, и Veo превратит их в видео.
+
+одно фото → используется как стартовый кадр
+
+два фото → первый кадр → последний кадр
+
+🎨 Видео по референсу
+
+Отправьте 1–3 фото как пример стиля или персонажа и локации — модель создаст новую сцену, сохранив внешний вид и атмосферу референсов.
+        """,
         reply_markup=veo_mode_keyboard(),
     )
 
@@ -190,14 +207,20 @@ async def back_to_engine_cb(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await safe_edit_text(
         callback.message,
-        "Выберите движок генерации:",
+        """
+Sora 2
+
+Продвинутая модель от OpenAI, которая делает очень реалистичные и плавные видео. Отлично подходит для красивых, кинематографичных роликов.
+
+Veo 3.1
+
+Современная модель от Google, которая быстро создаёт чёткие видео по тексту или фото. Идеальна для коротких и динамичных роликов.
+        """,
         reply_markup=engine_select_keyboard(),
     )
 
 
-# =====================================================
-#                      ВЫБОР РЕЖИМА
-# =====================================================
+#ВЫБОР РЕЖИМА
 
 async def veo_choose_mode(callback: CallbackQuery, state: FSMContext):
     mode = callback.data.replace("veo_mode_", "")
@@ -216,8 +239,15 @@ async def veo_choose_mode(callback: CallbackQuery, state: FSMContext):
         await state.set_state(VeoStates.collecting_images)
         await safe_edit_text(
             callback.message,
-            "📷 Режим: Видео по референсу.\n"
-            "Отправьте 1–3 фото подряд, затем текст.",
+            """
+📷 Режим: Видео по референсу.
+
+Отправьте 1–3 фото как пример стиля, персонажа или локации — модель создаст новую сцену, сохранив внешний вид и атмосферу референсов.
+
+После напишите описание что вы хотите увидеть на видео.
+
+Как пример вы можете закгрузить свое фото, фото одежды и фото локации, модель сгенерирует ваше фото в приложенной одежде на данной локации.
+            """,
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[[back_btn("back_to_engine")]],
             ),
@@ -235,14 +265,28 @@ async def back_to_veo_mode(callback: CallbackQuery, state: FSMContext):
     )
     await safe_edit_text(
         callback.message,
-        "🎥 Veo 3.1 — выберите режим:",
+        """
+📝 Текст → Видео
+
+Введите описание — и модель сама создаст видео по вашему тексту. Подходит для любых идей, даже если у вас нет фото.
+
+📷 Фото → Видео
+
+Загрузите 1–2 фото, и Veo превратит их в видео.
+
+одно фото → используется как стартовый кадр
+
+два фото → первое фото используется как стартовый кадр который лаконично переходит во второе фото
+
+🎨 Видео по референсу
+
+Отправьте 1–3 фото как пример стиля или персонажа — модель создаст новую сцену, сохранив внешний вид и атмосферу референсов.
+        """,
         reply_markup=veo_mode_keyboard(),
     )
 
 
-# =====================================================
-#                   ВЫБОР КАЧЕСТВА
-# =====================================================
+# ВЫБОР КАЧЕСТВА
 
 async def veo_choose_quality(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
@@ -255,26 +299,32 @@ async def veo_choose_quality(callback: CallbackQuery, state: FSMContext):
         await state.set_state(VeoStates.waiting_for_prompt)
         await safe_edit_text(
             callback.message,
-            f"✍️ Режим: Текст → Видео\nМодель: {_human_model_name(model)}\nВведите описание:",
+            f"✍️ Режим: Текст → Видео\nМодель: {_human_model_name(model)}\nВведите описание — и модель сама создаст видео по вашему тексту.\nПодходит для любых идей.",
             reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[back_btn("back_to_veo_mode")], [back_btn("back_to_engine")]],
+                inline_keyboard=[[back_btn("back_to_veo_mode")]],
             ),
         )
     else:
         await state.set_state(VeoStates.collecting_images)
         await safe_edit_text(
             callback.message,
-            f"🖼 Режим: Фото → Видео\nМодель: {_human_model_name(model)}\n"
-            "Отправьте 1–2 фото подряд, затем текст.",
+            f"""
+🖼 Режим: Фото → Видео
+Модель: {_human_model_name(model)}
+
+Загрузите 1–2 фото, и Veo превратит их в видео.
+
+одно фото → Генерирует видео на основе одного фото
+
+два фото → первое фото используется как стартовый кадр который лаконично переходит во второе фото
+            """,
             reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[back_btn("back_to_veo_mode")], [back_btn("back_to_engine")]],
+                inline_keyboard=[[back_btn("back_to_veo_mode")]],
             ),
         )
 
 
-# =====================================================
-#                     СБОР ФОТО
-# =====================================================
+#СБОР ФОТО
 
 async def veo_collect_image(message: Message, state: FSMContext):
     bot = message.bot
@@ -321,9 +371,8 @@ async def veo_prompt_after_images(message: Message, state: FSMContext):
     )
 
 
-# =====================================================
-#                 ПРОМПТ TEXT → VIDEO
-# =====================================================
+
+# ПРОМПТ TEXT → VIDEO
 
 async def veo_prompt_t2v(message: Message, state: FSMContext):
     data = await state.get_data()
@@ -342,9 +391,7 @@ async def veo_prompt_t2v(message: Message, state: FSMContext):
     )
 
 
-# =====================================================
-#                  ПОДТВЕРЖДЕНИЕ
-# =====================================================
+#ПОДТВЕРЖДЕНИЕ
 
 async def change_veo(callback: CallbackQuery, state: FSMContext):
     await back_to_veo_mode(callback, state)
@@ -397,9 +444,7 @@ async def confirm_veo(callback: CallbackQuery, state: FSMContext):
         await state.clear()
 
 
-# =====================================================
-#                ОТПРАВКА ЗАДАЧИ В VEO
-# =====================================================
+# ОТПРАВКА ЗАДАЧИ В VEO
 
 async def send_to_veo_api(
     bot,
@@ -435,7 +480,7 @@ async def send_to_veo_api(
     if images:
         payload["imageUrls"] = images
 
-    # ——————————— HTTP запрос ———————————
+    # запрос
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -465,7 +510,7 @@ async def send_to_veo_api(
         await safe_send_message(bot, uid, f"❌ Ошибка сети Veo. Токены возвращены.\n{e}")
         return
 
-    # ——————————— taskId ———————————
+    # taskId 
     root = data
     if isinstance(data, dict) and isinstance(data.get("data"), dict):
         root = data["data"]
@@ -484,7 +529,7 @@ async def send_to_veo_api(
         asyncio.create_task(check_veo_status(bot, uid, task_id, cost))
         return
 
-    # ——————————— Пробуем прямой videoUrl ———————————
+    # Пробуем прямой videoUrl
     video_url: Optional[str] = None
 
     if isinstance(root, dict):
@@ -503,6 +548,7 @@ async def send_to_veo_api(
     if video_url:
         await safe_send_message(bot, uid, "🎉 Ваше видео Veo 3.1 готово!")
         await safe_send_video(bot, uid, video_url, caption="🎬 Готовый ролик (Veo 3.1)")
+        await safe_send_message(bot, uid, "🏠 Главное меню:", reply_markup=main_menu_keyboard())
         return
 
     # Ничего не нашли
@@ -514,9 +560,7 @@ async def send_to_veo_api(
     )
 
 
-# =====================================================
-#                    РЕГИСТРАЦИЯ
-# =====================================================
+# РЕГИСТРАЦИЯ
 
 def register_veo_handlers(dp: Dispatcher) -> None:
     dp.callback_query.register(engine_veo_cb, F.data == "engine_veo")

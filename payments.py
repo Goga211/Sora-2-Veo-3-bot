@@ -65,6 +65,8 @@ RUB_PACKS: Dict[str, Dict[str, int]] = {
 
 # Последний инвойс Stars для удаления
 LAST_INVOICE_MSG: Dict[int, int] = {}
+# Последнее сообщение с кнопкой "Назад" под инвойсом
+LAST_BACK_MSG: Dict[int, int] = {}
 
 # Fallback, если нет идемпотентного метода в БД
 APPLIED_CHARGES: set[str] = set()
@@ -110,13 +112,13 @@ async def menu_topup_cb(callback: CallbackQuery, state: FSMContext):
     await state.set_state(BalanceStates.waiting_for_payment_method)
 
 
-# ─────────────────────────── /get_id и /give_tokens ───────────────────────────
+# /get_id и /give_tokens
 
 async def cmd_get_id(message: Message):
     uid = message.from_user.id
     await safe_answer(
         message,
-        f"🆔 Ваш Telegram ID: <b>{uid}</b>",
+        f"<b>{uid}</b>",
         parse_mode="HTML",
     )
 
@@ -165,7 +167,7 @@ async def cmd_give_tokens(message: Message):
     )
 
 
-# ─────────────────────────── Stars: выбор пакета ───────────────────────────
+# Stars: выбор пакета
 
 async def pay_stars_cb(callback: CallbackQuery, state: FSMContext):
     """
@@ -234,10 +236,81 @@ async def stars_package_cb(callback: CallbackQuery):
     )
 
     if msg:
+        # сохраняем id инвойса
         LAST_INVOICE_MSG[uid] = msg.message_id
 
+        # отправляем сообщение с кнопкой "Назад" напрямую (не через safe_send_message)
+        try:
+            back_msg = await bot.send_message(
+                uid,
+                "↩️ Если передумали — нажмите «Назад», инвойс будет удалён.",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text="⬅️ Назад", callback_data="stars_back")]
+                    ]
+                ),
+            )
+            LAST_BACK_MSG[uid] = back_msg.message_id
+        except Exception as e:
+            logger.exception(f"Не удалось отправить сообщение с кнопкой 'Назад': {e}")
 
-# Stars: pre-checkout + успешная оплата 
+        # удаляем предыдущее сообщение с выбором пакета
+        await safe_delete_message(
+            bot,
+            callback.message.chat.id,
+            callback.message.message_id,
+        )
+
+    # закрываем "часики" у пользователя
+    try:
+        await callback.answer()
+    except Exception:
+        pass
+
+
+async def stars_back_cb(callback: CallbackQuery):
+    """
+    Кнопка "⬅️ Назад" под инвойсом Stars.
+    Удаляет инвойс + это сообщение, возвращает к выбору пакета звёзд.
+    """
+    bot = callback.message.bot
+    uid = callback.from_user.id
+
+    # Удаляем инвойс, если есть
+    inv_mid = LAST_INVOICE_MSG.pop(uid, None)
+    if inv_mid:
+        await safe_delete_message(bot, uid, inv_mid)
+
+    # Удаляем сообщение с кнопкой "Назад"
+    back_mid = LAST_BACK_MSG.pop(uid, None)
+    if back_mid:
+        await safe_delete_message(bot, uid, back_mid)
+
+    # Показываем выбор пакетов звёзд
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=STAR_PACKS["20"]["title"],  callback_data="stars_20")],
+            [InlineKeyboardButton(text=STAR_PACKS["60"]["title"],  callback_data="stars_60")],
+            [InlineKeyboardButton(text=STAR_PACKS["120"]["title"], callback_data="stars_120")],
+            [InlineKeyboardButton(text=STAR_PACKS["300"]["title"], callback_data="stars_300")],
+            [back_btn("menu_topup")],
+        ]
+    )
+    await safe_send_message(
+        bot,
+        uid,
+        "⭐ Выберите пакет для пополнения:\n"
+        "Дешево звёзды можно купить тут — @cheapiest_star_bot",
+        reply_markup=kb,
+    )
+
+    try:
+        await callback.answer()
+    except Exception:
+        pass
+
+
+# Stars: pre-checkout + успешная оплата
 
 async def on_pre_checkout(pcq: PreCheckoutQuery):
     """
@@ -313,11 +386,16 @@ async def on_successful_stars_payment(message: Message):
             "ℹ️ Этот платёж уже был учтён ранее.",
         )
 
-    # Удаляем чек (текущее сообщение) и инвойс Stars
+    # Удаляем чек (текущее сообщение), инвойс и сообщение "Назад"
     await safe_delete_message(message.bot, message.chat.id, message.message_id)
-    mid = LAST_INVOICE_MSG.pop(uid, None)
-    if mid:
-        await safe_delete_message(message.bot, message.chat.id, mid)
+
+    inv_mid = LAST_INVOICE_MSG.pop(uid, None)
+    if inv_mid:
+        await safe_delete_message(message.bot, message.chat.id, inv_mid)
+
+    back_mid = LAST_BACK_MSG.pop(uid, None)
+    if back_mid:
+        await safe_delete_message(message.bot, message.chat.id, back_mid)
 
 
 # YooKassa: создание платежа
@@ -498,7 +576,7 @@ async def rubles_package_cb(callback: CallbackQuery):
         )
 
 
-# ─────────────────────────── Регистрация хендлеров ───────────────────────────
+# Регистрация хендлеров
 
 def register_payment_handlers(dp: Dispatcher) -> None:
     """
@@ -514,6 +592,7 @@ def register_payment_handlers(dp: Dispatcher) -> None:
 
     # Stars
     dp.callback_query.register(pay_stars_cb, F.data == "pay_stars")
+    dp.callback_query.register(stars_back_cb, F.data == "stars_back")
     dp.callback_query.register(stars_package_cb, F.data.startswith("stars_"))
     dp.pre_checkout_query.register(on_pre_checkout)
     dp.message.register(on_successful_stars_payment, F.successful_payment)
