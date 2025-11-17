@@ -535,8 +535,11 @@ async def rubles_package_cb(callback: CallbackQuery):
                         await safe_send_message(
                             bot,
                             uid,
-                            f"✅ Оплата {payment.amount.value}₽ получена.\n"
-                            f"🪙 Начислено {pkg['tokens']} токенов.",
+                            f"""
+✅ Оплата {payment.amount.value}₽ получена.
+🪙 Начислено {pkg['tokens']} токенов.
+                            """,
+                            reply_markup=main_menu_keyboard()
                         )
                         return
 

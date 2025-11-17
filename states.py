@@ -40,6 +40,8 @@ class VeoStates(StatesGroup):
     choosing_mode = State()
 
     choosing_quality = State()
+        
+    choosing_orientation = State()
 
     collecting_images = State()
 

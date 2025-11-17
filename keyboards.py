@@ -195,7 +195,17 @@ def veo_mode_keyboard() -> InlineKeyboardMarkup:
             [back_btn("back_to_engine")],
         ]
     )
-
+    
+def veo_aspect_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="📺 16 : 9", callback_data="veo_ar_169"),
+                InlineKeyboardButton(text="📱 9 : 16", callback_data="veo_ar_916"),
+            ],
+            [back_btn("back_to_veo_mode")],
+        ]
+    )
 
 def veo_quality_keyboard() -> InlineKeyboardMarkup:
     """
